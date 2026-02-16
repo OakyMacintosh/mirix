@@ -1,0 +1,111 @@
+#!/bin/bash
+
+# MIRIX Cross-Compiler Wrapper
+# Usage: mirix-gcc [options] source.c -o output
+
+set -e
+
+# Get the host architecture
+HOST_ARCH=$(uname -m)
+TARGET_TRIPLE="${HOST_ARCH}-unknown-sysv-mirix1"
+
+# Default compiler flags
+CFLAGS="-std=c99 -Wall -Wextra -O2 -fno-builtin -ffreestanding -nostdlib"
+LDFLAGS="-static"
+LIBS="-lmirixc"
+
+# Parse arguments
+INPUT_FILES=()
+OUTPUT_FILE=""
+COMPILE_ONLY=false
+LINK_ONLY=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -o)
+            OUTPUT_FILE="$2"
+            shift 2
+            ;;
+        -c)
+            COMPILE_ONLY=true
+            INPUT_FILES+=("$1")
+            shift
+            ;;
+        -l*)
+            LIBS+=" $1"
+            shift
+            ;;
+        -I*)
+            CFLAGS+=" $1"
+            shift
+            ;;
+        -L*)
+            LDFLAGS+=" $1"
+            shift
+            ;;
+        -D*)
+            CFLAGS+=" $1"
+            shift
+            ;;
+        *.c)
+            INPUT_FILES+=("$1")
+            shift
+            ;;
+        *.o)
+            INPUT_FILES+=("$1")
+            shift
+            ;;
+        *)
+            CFLAGS+=" $1"
+            shift
+            ;;
+    esac
+done
+
+# Check if we have input files
+if [ ${#INPUT_FILES[@]} -eq 0 ]; then
+    echo "mirix-gcc: no input files"
+    echo "Usage: mirix-gcc [options] source.c -o output"
+    exit 1
+fi
+
+# Create build directory
+mkdir -p build/mirix-cross
+
+# Compile source files
+OBJECT_FILES=()
+for input in "${INPUT_FILES[@]}"; do
+    if [[ "$input" == *.c ]]; then
+        obj_file="build/mirix-cross/$(basename "$input" .c).o"
+        echo "Compiling $input -> $obj_file"
+        
+        # Use host clang with MIRIX-specific flags
+        clang $CFLAGS -c "$input" -o "$obj_file" \
+            -target "$TARGET_TRIPLE" \
+            -isystem "$(dirname "$0")/../mirix/libc" \
+            -D__MIRIX__=1 \
+            -D__SYSV__=1
+        
+        OBJECT_FILES+=("$obj_file")
+    else
+        OBJECT_FILES+=("$input")
+    fi
+done
+
+# Link if not compile-only
+if [ "$COMPILE_ONLY" = false ]; then
+    if [ -z "$OUTPUT_FILE" ]; then
+        OUTPUT_FILE="a.out"
+    fi
+    
+    echo "Linking ${OBJECT_FILES[@]} -> $OUTPUT_FILE"
+    
+    # Link with MIRIX libc
+    clang $LDFLAGS "${OBJECT_FILES[@]}" -o "$OUTPUT_FILE" \
+        -target "$TARGET_TRIPLE" \
+        -L"$(dirname "$0")/../build/mirix/libc" \
+        $LIBS
+    
+    echo "MIRIX executable created: $OUTPUT_FILE"
+    echo "Target: $TARGET_TRIPLE"
+fi

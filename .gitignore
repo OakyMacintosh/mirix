@@ -1,0 +1,9 @@
+build/
+*.o
+*.dylib
+*.obj
+a.out
+mirix_kernel
+*_kernel
+*.timestamp
+*.timeshare

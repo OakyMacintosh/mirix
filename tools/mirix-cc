@@ -1,0 +1,100 @@
+#!/bin/bash
+
+# MIRIX Cross-Compiler
+# Usage: mirix-cc source.c -o output
+
+set -e
+
+# Get the host architecture
+HOST_ARCH=$(uname -m)
+TARGET_TRIPLE="${HOST_ARCH}-unknown-sysv-mirix1"
+
+echo "MIRIX Cross-Compiler"
+echo "Target: $TARGET_TRIPLE"
+
+# Parse arguments
+INPUT_FILES=()
+OUTPUT_FILE=""
+CFLAGS="-std=c99 -Wall -Wextra -O2 -D__MIRIX__=1 -D__SYSV__=1"
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -o)
+            OUTPUT_FILE="$2"
+            shift 2
+            ;;
+        -c)
+            CFLAGS="$CFLAGS -c"
+            shift
+            ;;
+        *.c)
+            INPUT_FILES+=("$1")
+            shift
+            ;;
+        *)
+            CFLAGS="$CFLAGS $1"
+            shift
+            ;;
+    esac
+done
+
+# Check if we have input files
+if [ ${#INPUT_FILES[@]} -eq 0 ]; then
+    echo "mirix-cc: no input files"
+    echo "Usage: mirix-cc source.c -o output"
+    exit 1
+fi
+
+# Create build directory
+mkdir -p build/mirix-cross
+
+# Compile source files
+OBJECT_FILES=()
+for input in "${INPUT_FILES[@]}"; do
+    if [[ "$input" == *.c ]]; then
+        obj_file="build/mirix-cross/$(basename "$input" .c).o"
+        echo "Compiling $input -> $obj_file"
+        
+        # Use host clang with MIRIX-specific flags
+        clang $CFLAGS -c "$input" -o "$obj_file" \
+            -I"$(dirname "$0")"
+        
+        OBJECT_FILES+=("$obj_file")
+    else
+        OBJECT_FILES+=("$input")
+    fi
+done
+
+# Link if not compile-only
+if [[ ! "$CFLAGS" =~ "-c" ]]; then
+    if [ -z "$OUTPUT_FILE" ]; then
+        OUTPUT_FILE="a.out"
+    fi
+    
+    echo "Linking ${OBJECT_FILES[@]} -> $OUTPUT_FILE"
+    
+    # Create a simple executable with entry point
+    cat > build/mirix-cross/entry.c << 'EOF'
+// MIRIX program entry point
+void _start(void) {
+    // Call main function
+    extern int main(void);
+    int result = main();
+    
+    // Exit with result
+    extern void exit(int);
+    exit(result);
+}
+EOF
+    
+    # Compile entry point
+    clang -c build/mirix-cross/entry.c -o build/mirix-cross/entry.o
+    
+    # Link everything
+    clang "${OBJECT_FILES[@]}" build/mirix-cross/entry.o -o "$OUTPUT_FILE" \
+        build/mirix-cross/libc/mirix_libc.o \
+        -framework CoreFoundation
+    
+    echo "MIRIX executable created: $OUTPUT_FILE"
+    echo "Target: $TARGET_TRIPLE"
+fi

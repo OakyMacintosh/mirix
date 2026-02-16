@@ -1,0 +1,52 @@
+#!/bin/bash
+
+# MIRIX Archiver Wrapper
+# Usage: mirix-ar [options] archive.a object_files...
+
+set -e
+
+# Get the host architecture
+HOST_ARCH=$(uname -m)
+TARGET_TRIPLE="${HOST_ARCH}-unknown-sysv-mirix1"
+
+# Default ar flags
+AR_FLAGS="rcs"
+
+# Parse arguments
+ARCHIVE_FILE=""
+OBJECT_FILES=()
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        rcs|rc|cr)
+            AR_FLAGS="$1"
+            shift
+            ;;
+        *.a)
+            ARCHIVE_FILE="$1"
+            shift
+            ;;
+        *.o)
+            OBJECT_FILES+=("$1")
+            shift
+            ;;
+        *)
+            echo "mirix-ar: unknown option $1"
+            exit 1
+            ;;
+    esac
+done
+
+# Check if we have archive file
+if [ -z "$ARCHIVE_FILE" ]; then
+    echo "mirix-ar: no archive file specified"
+    echo "Usage: mirix-ar [options] archive.a object_files..."
+    exit 1
+fi
+
+# Create archive
+echo "Creating MIRIX archive: $ARCHIVE_FILE"
+ar $AR_FLAGS "$ARCHIVE_FILE" "${OBJECT_FILES[@]}"
+
+echo "MIRIX archive created: $ARCHIVE_FILE"
+echo "Target: $TARGET_TRIPLE"

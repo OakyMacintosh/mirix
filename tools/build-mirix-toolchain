@@ -1,0 +1,99 @@
+#!/bin/bash
+
+# Build MIRIX Cross-Compiler Toolchain
+
+set -e
+
+echo "Building MIRIX Cross-Compiler Toolchain..."
+
+# Get host architecture
+HOST_ARCH=$(uname -m)
+TARGET_TRIPLE="${HOST_ARCH}-unknown-sysv-mirix1"
+
+# Create directories
+mkdir -p build/mirix-cross/libc
+mkdir -p build/mirix-cross/bin
+mkdir -p build/mirix-cross/lib
+
+echo "Target triple: $TARGET_TRIPLE"
+
+# Build MIRIX libc as static library
+echo "Building MIRIX libc..."
+
+# Compile libc source files (freestanding version)
+LIBC_SOURCES="mirix_libc_freestanding.c"
+LIBC_OBJECTS="build/mirix-cross/libc/mirix_libc.o"
+
+clang -std=c99 -Wall -Wextra -O2 -fno-builtin -ffreestanding -nostdlib \
+    -target "$TARGET_TRIPLE" \
+    -D__MIRIX__=1 -D__SYSV__=1 \
+    -c "$LIBC_SOURCES" -o "$LIBC_OBJECTS"
+
+# Create static library
+ar rcs build/mirix-cross/lib/libmirixc.a "$LIBC_OBJECTS"
+
+echo "MIRIX libc built: build/mirix-cross/lib/libmirixc.a"
+
+# Create MIRIX sysroot
+echo "Creating MIRIX sysroot..."
+mkdir -p "build/mirix-cross/sysroot/${TARGET_TRIPLE}/lib"
+mkdir -p "build/mirix-cross/sysroot/${TARGET_TRIPLE}/include"
+
+# Copy libc to sysroot
+cp build/mirix-cross/lib/libmirixc.a "build/mirix-cross/sysroot/${TARGET_TRIPLE}/lib/"
+cp mirix_libc_freestanding.h "build/mirix-cross/sysroot/${TARGET_TRIPLE}/include/mirix_libc.h"
+
+# Create compiler wrapper scripts
+cat > build/mirix-cross/bin/mirix-gcc << 'EOF'
+#!/bin/bash
+# MIRIX GCC Wrapper
+TARGET_TRIPLE="$(uname -m)-unknown-sysv-mirix1"
+SYSROOT="$(dirname "$0")/../sysroot"
+
+exec clang -target "$TARGET_TRIPLE" \
+    --sysroot="$SYSROOT" \
+    -isystem "$SYSROOT/${TARGET_TRIPLE}/include" \
+    -L "$SYSROOT/${TARGET_TRIPLE}/lib" \
+    -static -nostdlib -lmirixc \
+    "$@"
+EOF
+
+cat > build/mirix-cross/bin/mirix-ar << 'EOF'
+#!/bin/bash
+# MIRIX AR Wrapper
+exec ar "$@"
+EOF
+
+# Make scripts executable
+chmod +x build/mirix-cross/bin/mirix-gcc
+chmod +x build/mirix-cross/bin/mirix-ar
+
+# Create test program
+cat > build/mirix-cross/test_mirix.c << 'EOF'
+#include <mirix_libc.h>
+
+int main(void) {
+    mirix_printf("Hello from MIRIX cross-compiler!\n");
+    mirix_printf("Target: %s\n", "mirix1");
+    return 0;
+}
+EOF
+
+# Compile test program
+echo "Compiling test program..."
+build/mirix-cross/bin/mirix-gcc -o build/mirix-cross/test_mirix build/mirix-cross/test_mirix.c
+
+echo "MIRIX Cross-Compiler Toolchain built successfully!"
+echo ""
+echo "Toolchain location: build/mirix-cross/"
+echo "Target triple: $TARGET_TRIPLE"
+echo ""
+echo "Usage examples:"
+echo "  # Compile a MIRIX program"
+echo "  build/mirix-cross/bin/mirix-gcc -o program program.c"
+echo ""
+echo "  # Create static library"
+echo "  build/mirix-cross/bin/mirix-ar rcs lib.a object1.o object2.o"
+echo ""
+echo "Test program: build/mirix-cross/test_mirix"
+echo "MIRIX libc: build/mirix-cross/sysroot/${TARGET_TRIPLE}/lib/libmirixc.a"
