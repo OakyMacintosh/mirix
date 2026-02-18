@@ -1,0 +1,28 @@
+{
+    "configurations": [
+        {
+            "name": "Mac",
+            "includePath": [
+                "${workspaceFolder}/**"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/clang",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "macos-clang-x64",
+            "configurationProvider": "ms-vscode.makefile-tools"
+        },
+        {
+            "name": "DJGPP",
+            "includePath": [
+                "${workspaceFolder}/**"
+            ],
+            "defines": [],
+            "compilerPath": "/Volumes/FileSystemMac/macOS/i586-pc-msdosdjgpp/bin/i586-pc-msdosdjgpp-gcc",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "gcc-x86"
+        }
+    ],
+    "version": 4
+}

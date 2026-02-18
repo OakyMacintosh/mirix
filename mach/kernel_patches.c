@@ -64,7 +64,7 @@ static int kern_memory_count = 0;
 
 /* Initialize kernel Mach subsystem */
 kern_return_t mach_kernel_init(void) {
-    printf("MIRIX: Initializing kernel Mach subsystem\n");
+    printf("[i] Initializing kernel Mach subsystem\n");
     
     /* Clear tables */
     memset(kern_port_table, 0, sizeof(kern_port_table));
@@ -93,8 +93,8 @@ kern_return_t mach_kernel_init(void) {
     kern_task_table[0].priority = 255; /* Highest priority */
     kern_task_count = 1;
     
-    printf("MIRIX: Kernel Mach subsystem initialized\n");
-    printf("MIRIX: %d kernel ports, %d kernel tasks available\n", 
+    printf("[i] Kernel Mach subsystem initialized\n");
+    printf("[mach4] %d kernel ports, %d kernel tasks available\n", 
            kern_port_count, kern_task_count);
     
     return KERN_SUCCESS;
@@ -118,7 +118,7 @@ kern_return_t mach_port_allocate_kernel(mach_port_t *port, const char *name, voi
     *port = new_port;
     kern_port_count++;
     
-    printf("MIRIX: Allocated kernel port 0x%x (%s)\n", new_port, name ? name : "kern_unnamed");
+    printf("[mach4] Allocated kernel port 0x%x (%s)\n", new_port, name ? name : "kern_unnamed");
     return KERN_SUCCESS;
 }
 
@@ -128,7 +128,7 @@ kern_return_t mach_port_deallocate_kernel(mach_port_t port) {
         if (kern_port_table[i].port == port) {
             kern_port_table[i].ref_count--;
             if (kern_port_table[i].ref_count <= 0) {
-                printf("MIRIX: Deallocated kernel port 0x%x (%s)\n", 
+                printf("[mach4] Deallocated kernel port 0x%x (%s)\n", 
                        port, kern_port_table[i].name);
                 
                 /* Free associated data if any */
@@ -157,7 +157,7 @@ kern_return_t mach_msg_queue_create(mach_port_t port) {
     msg_queues[port] = NULL; /* Initialize empty queue */
     msg_queue_count++;
     
-    printf("MIRIX: Created message queue for port 0x%x\n", port);
+    printf("[mach4] Created message queue for port 0x%x\n", port);
     return KERN_SUCCESS;
 }
 
@@ -180,7 +180,7 @@ kern_return_t mach_msg_queue_destroy(mach_port_t port) {
     msg_queues[port] = NULL;
     msg_queue_count--;
     
-    printf("MIRIX: Destroyed message queue for port 0x%x\n", port);
+    printf("[mach4] Destroyed message queue for port 0x%x\n", port);
     return KERN_SUCCESS;
 }
 
@@ -220,7 +220,7 @@ kern_return_t mach_msg_enqueue(mach_port_t port, mach_msg_header_t *msg, int pri
         current->next = new_msg;
     }
     
-    printf("MIRIX: Enqueued message for port 0x%x (priority=%d)\n", port, priority);
+    printf("[mach4] Enqueued message for port 0x%x (priority=%d)\n", port, priority);
     return KERN_SUCCESS;
 }
 
@@ -244,7 +244,7 @@ kern_return_t mach_msg_dequeue(mach_port_t port, mach_msg_header_t *msg, size_t 
     free(queue_msg->msg);
     free(queue_msg);
     
-    printf("MIRIX: Dequeued message from port 0x%x\n", port);
+    printf("[mach4] Dequeued message from port 0x%x\n", port);
     return KERN_SUCCESS;
 }
 
@@ -267,7 +267,7 @@ kern_return_t task_create_kernel(mach_task_t *child_task, pid_t pid, const char 
     *child_task = new_task;
     kern_task_count++;
     
-    printf("MIRIX: Created kernel task 0x%x (pid=%d, name=%s, priority=%d)\n", 
+    printf("[mach4] Created kernel task 0x%x (pid=%d, name=%s, priority=%d)\n", 
            new_task, pid, name ? name : "kern_unnamed_task", priority);
     return KERN_SUCCESS;
 }
@@ -292,7 +292,7 @@ kern_return_t vm_allocate_kernel(void **addr, size_t size, int protection, const
     *addr = memory;
     kern_memory_count++;
     
-    printf("MIRIX: Allocated kernel memory %p (size=%zu, owner=%s)\n", 
+    printf("[mach4] Allocated kernel memory %p (size=%zu, owner=%s)\n", 
            memory, size, owner ? owner : "kernel");
     return KERN_SUCCESS;
 }
@@ -300,7 +300,7 @@ kern_return_t vm_allocate_kernel(void **addr, size_t size, int protection, const
 kern_return_t vm_deallocate_kernel(void *addr) {
     for (int i = 0; i < kern_memory_count; i++) {
         if (kern_memory_table[i].addr == addr) {
-            printf("MIRIX: Deallocated kernel memory %p (size=%zu, owner=%s)\n",
+            printf("[mach4] Deallocated kernel memory %p (size=%zu, owner=%s)\n",
                    addr, kern_memory_table[i].size, kern_memory_table[i].owner);
             
             free(addr);
@@ -318,7 +318,7 @@ kern_return_t vm_deallocate_kernel(void *addr) {
 
 /* Get kernel Mach statistics */
 void mach_kernel_stats(void) {
-    printf("MIRIX Kernel Mach Statistics:\n");
+    printf("mach4 statistics:\n");
     printf("  Kernel ports: %d/2048\n", kern_port_count);
     printf("  Kernel tasks: %d/128\n", kern_task_count);
     printf("  Message queues: %d/1024\n", msg_queue_count);
@@ -343,12 +343,12 @@ void mach_kernel_stats(void) {
     for (int i = 0; i < kern_memory_count; i++) {
         total_memory += kern_memory_table[i].size;
     }
-    printf("Total kernel memory allocated: %zu bytes\n", total_memory);
+    printf("[i] Total kernel memory allocated [ %zu bytes ]\n", total_memory);
 }
 
 /* Cleanup kernel Mach subsystem */
 void mach_kernel_cleanup(void) {
-    printf("MIRIX: Cleaning up kernel Mach subsystem\n");
+    printf("[i] Cleaning up kernel Mach subsystem\n");
     
     /* Free all message queues */
     for (int i = 0; i < 1024; i++) {
@@ -382,5 +382,5 @@ void mach_kernel_cleanup(void) {
     msg_queue_count = 0;
     kern_memory_count = 0;
     
-    printf("MIRIX: Kernel Mach subsystem cleaned up\n");
+    printf("[i] mach subsystem cleaned up\n");
 }

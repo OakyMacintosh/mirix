@@ -1,16 +1,19 @@
 /*
- * MIRIX Simplified SUS (Single UNIX Specification) Implementation
- * Implements core POSIX.1-2001, SUSv3 features without conflicts
+ * MIRIX POSIX Implementation with SUS Compliance
+ * Implements POSIX.1-2001, SUSv3, and related standards
  */
 
+#include "posix.h"
 #include "sus_simple.h"
-#include <mirix/syscall/syscall.h>
+#include "mirix/syscall/syscall.h"
+#include <stdbool.h>
 #include <string.h>
 #include <errno.h>
 #include <sys/mman.h>
 #include <signal.h>
 #include <time.h>
 #include <pthread.h>
+#include "dos_compat.h"
 #include <sys/mman.h>
 #include <signal.h>
 #include <time.h>
@@ -28,14 +31,6 @@ static struct {
     mirix_file_entry_t file_table[256];
 } posix_state;
 
-// File table entry
-typedef struct {
-    int fd;
-    int flags;
-    mode_t mode;
-    bool in_use;
-} mirix_file_entry_t;
-
 // Initialize POSIX compatibility layer
 int posix_init(void) {
     if (posix_state.initialized) {
@@ -48,7 +43,17 @@ int posix_init(void) {
     // Initialize mutex
     pthread_mutex_init(&posix_state.file_table_mutex, NULL);
     
+    // Initialize file table
+    for (int i = 0; i < 256; i++) {
+        posix_state.file_table[i].fd = -1;
+        posix_state.file_table[i].flags = 0;
+        posix_state.file_table[i].mode = 0;
+        posix_state.file_table[i].in_use = false;
+    }
+    
     posix_state.initialized = true;
+    
+    printf("POSIX: POSIX compatibility layer initialized\n");
     return 0;
 }
 
@@ -100,20 +105,25 @@ int posix_open(const char *pathname, int flags, ...) {
         return -1;
     }
     
-    // Find free slot in our file table
-    int slot = find_free_fd_slot();
-    if (slot == -1) {
-        close(fd);
-        errno = EMFILE;
-        return -1;
+    // Find free slot in file table
+    pthread_mutex_lock(&posix_state.file_table_mutex);
+    for (int i = 0; i < 256; i++) {
+        if (!posix_state.file_table[i].in_use) {
+            posix_state.file_table[i].fd = fd;
+            posix_state.file_table[i].flags = flags;
+            posix_state.file_table[i].mode = mode;
+            posix_state.file_table[i].in_use = true;
+            pthread_mutex_unlock(&posix_state.file_table_mutex);
+            
+            printf("posix_open: fd %d (real %d) -> %d\n", i, fd, i);
+            return i;
+        }
     }
     
-    posix_state.file_table[slot].fd = fd;
-    posix_state.file_table[slot].flags = flags;
-    posix_state.file_table[slot].mode = mode;
+    pthread_mutex_unlock(&posix_state.file_table_mutex);
     
-    printf("posix_open: %s -> fd %d (slot %d)\n", pathname, fd, slot);
-    return slot;
+    errno = EMFILE;
+    return -1;
 }
 
 // close() wrapper
@@ -239,34 +249,26 @@ pid_t posix_waitpid(pid_t pid, int *status, int options) {
         return -1;
     }
     
-    int result = syscall_wait(status);
-    if (result == -1) {
-        errno = errno;
-    }
-    
-    printf("posix_waitpid: pid %d -> %d\n", pid, result);
-    return result;
+    return MIRIX_GETPID();
 }
 
-// kill() wrapper
-int posix_kill(pid_t pid, int sig) {
+// SUS-aware memory allocation
+void *posix_malloc(size_t size) {
     if (!posix_state.initialized) {
         errno = ENOSYS;
-        return -1;
+        return NULL;
     }
     
-    // Store signal handler info
-    if (sig >= 0 && sig < 32) {
-        posix_state.signal_handlers[sig] = 1;
+    // Use mirix_posix_memalign for SUS compliance
+    void *ptr;
+    if (MIRIX_POSIX_MEMALIGN_AVAILABLE) {
+        int result = mirix_posix_memalign_impl(sizeof(void*), size, &ptr);
+        if (result == 0) {
+            return ptr;
+        }
     }
     
-    int result = kill(pid, sig);
-    if (result == -1) {
-        errno = errno;
-    }
-    
-    printf("posix_kill: pid %d, sig %d -> %d\n", pid, sig, result);
-    return result;
+    return MIRIX_MALLOC(size);
 }
 
 // gettimeofday() wrapper
@@ -291,14 +293,12 @@ int posix_nanosleep(const struct timespec *req, struct timespec *rem) {
         return -1;
     }
     
-    int result = nanosleep(req, rem);
-    if (result == -1) {
-        errno = errno;
-    }
-    
-    printf("posix_nanosleep: %ld.%09ld seconds -> %d\n", 
-           req->tv_sec, req->tv_nsec, result);
-    return result;
+#if MIRIX_CLOCK_NANOSLEEP_AVAILABLE
+    return MIRIX_CLOCK_NANOSLEEP(CLOCK_REALTIME, req, rem);
+#else
+    errno = ENOSYS;
+    return -1;
+#endif
 }
 
 // pthread_create() wrapper
@@ -308,9 +308,15 @@ int posix_pthread_create(pthread_t *thread, const pthread_attr_t *attr,
         return ENOSYS;
     }
     
+#if MIRIX_PTHREADS_AVAILABLE
     int result = pthread_create(thread, attr, start_routine, arg);
-    printf("posix_pthread_create -> %d\n", result);
+    if (result == 0) {
+        printf("posix_pthread_create: thread created successfully\n");
+    }
     return result;
+#else
+    return MIRIX_PTHREAD_CREATE(thread, attr, start_routine, arg);
+#endif
 }
 
 // pthread_join() wrapper
@@ -319,7 +325,30 @@ int posix_pthread_join(pthread_t thread, void **retval) {
         return ENOSYS;
     }
     
+#if MIRIX_PTHREADS_AVAILABLE
     int result = pthread_join(thread, retval);
-    printf("posix_pthread_join -> %d\n", result);
+    if (result == 0) {
+        printf("posix_pthread_join: thread joined successfully\n");
+    }
     return result;
+#else
+    return MIRIX_PTHREAD_JOIN(thread, retval);
+#endif
+}
+
+// pthread_atfork() wrapper
+int posix_pthread_atfork(void (*prepare)(void), void (*parent)(void), void (*child)(void)) {
+    if (!posix_state.initialized) {
+        return ENOSYS;
+    }
+    
+#if MIRIX_PTHREADS_AVAILABLE
+    int result = pthread_atfork(prepare, parent, child);
+    if (result == 0) {
+        printf("posix_pthread_atfork: atfork handlers registered\n");
+    }
+    return result;
+#else
+    return MIRIX_PTHREAD_ATFORK(prepare, parent, child);
+#endif
 }

@@ -12,7 +12,8 @@ static mirix_kernel_args_t default_args = {
     .timeshare_file = NULL,
     .alloc_size = 512 * 1024 * 1024, // 512MB
     .init_program = "./sysvinit.out",
-    .root_filesystem = "build/X86_64-DEBUG/filesystem/rootfs/lazyfs.out",
+    .root_filesystem = "build/X86_64-DEBUG/filesystem/rootfs",
+    .lazyfs_backing_file = "./lazyfs.img", // New default
     .verbose = false,
     .cpu_count = 1,
     .help = false
@@ -26,9 +27,10 @@ static void print_usage(const char *program_name) {
     printf("  -t, --timeshare FILE     Timeshare configuration file\n");
     printf("  -a, --alloc SIZE        Memory allocation size (default: 512MB)\n");
     printf("  -i, --init PROGRAM      Init program (default: ./sysvinit.out)\n");
-    printf("  -r, --root FS          Root filesystem (default: build/X86_64-DEBUG/filesystem/rootfs/lazyfs.out)\n");
+    printf("  -r, --root FS          Root filesystem mount point (default: %s)\n", default_args.root_filesystem);
+    printf("  -f, --lazyfs-file FILE LazyFS backing file (default: %s)\n", default_args.lazyfs_backing_file);
     printf("  -v, --verbose           Enable verbose output\n");
-    printf("  -m, --mcpu COUNT       Number of CPUs (default: 1)\n");
+    printf("  -m, --mcpu COUNT       Number of CPUs (default: %d)\n", default_args.cpu_count);
     printf("  -h, --help             Show this help message\n\n");
 }
 
@@ -95,6 +97,7 @@ mirix_kernel_args_t* parse_kernel_args(int argc, char *argv[]) {
         {"alloc",      required_argument, 0, 'a'},
         {"init",       required_argument, 0, 'i'},
         {"root",       required_argument, 0, 'r'},
+        {"lazyfs-file", required_argument, 0, 'f'}, // New long option
         {"verbose",    no_argument,       0, 'v'},
         {"mcpu",      required_argument, 0, 'm'},
         {"help",       no_argument,       0, 'h'},
@@ -105,7 +108,7 @@ mirix_kernel_args_t* parse_kernel_args(int argc, char *argv[]) {
     int opt;
     int option_index = 0;
     
-    while ((opt = getopt_long(argc, argv, "t:a:i:r:vm:h", long_options, &option_index)) != -1) {
+    while ((opt = getopt_long(argc, argv, "t:a:i:r:f:vm:h", long_options, &option_index)) != -1) {
         switch (opt) {
             case 't':
                 args->timeshare_file = strdup(optarg);
@@ -121,6 +124,10 @@ mirix_kernel_args_t* parse_kernel_args(int argc, char *argv[]) {
                 
             case 'r':
                 args->root_filesystem = strdup(optarg);
+                break;
+                
+            case 'f': // New case
+                args->lazyfs_backing_file = strdup(optarg);
                 break;
                 
             case 'v':
@@ -182,6 +189,10 @@ void print_kernel_args(const mirix_kernel_args_t *args) {
         printf("Root filesystem:   %s\n", args->root_filesystem);
     }
     
+    if (args->lazyfs_backing_file) { // New print
+        printf("LazyFS backing file: %s\n", args->lazyfs_backing_file);
+    }
+    
     printf("Verbose mode:      %s\n", args->verbose ? "YES" : "NO");
     printf("CPU count:         %d\n", args->cpu_count);
     printf("\n");
@@ -200,6 +211,9 @@ void free_kernel_args(mirix_kernel_args_t *args) {
     }
     if (args->root_filesystem && args->root_filesystem != default_args.root_filesystem) {
         free(args->root_filesystem);
+    }
+    if (args->lazyfs_backing_file && args->lazyfs_backing_file != default_args.lazyfs_backing_file) { // New free
+        free(args->lazyfs_backing_file);
     }
     
     free(args);

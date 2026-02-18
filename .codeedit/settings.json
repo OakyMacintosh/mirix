@@ -1,0 +1,12 @@
+{
+  "project" : {
+    "projectName" : "MIRIX Kernel"
+  },
+  "tasks" : [
+    {
+      "command" : "make MACH=1",
+      "name" : "Build",
+      "workingDirectory" : "\/Volumes\/FileSystemMac\/Developer\/Projects\/MIRIX"
+    }
+  ]
+}

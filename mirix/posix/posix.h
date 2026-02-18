@@ -1,12 +1,13 @@
 #ifndef MIRIX_POSIX_H
 #define MIRIX_POSIX_H
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/stat.h>
+/*
+ * MIRIX POSIX Compatibility Header with SUS Compliance
+ * Implements POSIX.1-2001, SUSv3, and related standards
+ */
+
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <errno.h>
 #include <signal.h>
@@ -14,9 +15,13 @@
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <unistd.h>
 
 // Include SUS compliance
 #include "sus_simple.h"
+
+// Include DOS compatibility
+#include "dos_compat.h"
 
 // File table entry
 typedef struct {

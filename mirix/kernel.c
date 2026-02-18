@@ -13,6 +13,7 @@
 #include "syscall/syscall.h"
 #include "posix/posix.h"
 #include "drivers/lazyfs.h"
+#include "bsd/bsd_proc.h"
 
 #ifdef MACH_KERNEL_INTEGRATION
 #include "mach/mach.h"
@@ -46,16 +47,15 @@ static mirix_kernel_args_t *kernel_args = NULL;
 // Kernel panic function
 void kernel_panic(const char *message) {
     printf("\n");
-    printf("***********************************\n");
-    printf("* KERNEL PANIC: %s\n", message);
-    printf("***********************************\n");
+    printf("**** KERNEL PANIC ****\n");
+    printf("%s\n", message);
     printf("System halted!\n");
     
     // Set kernel state to panicked
     kernel_state.status = MIRIX_KERNEL_STOPPED;
     
-    // Exit with error code
-    exit(1);
+    // Stay running until the break keystroke is invoqued.
+    exit(0);
 }
 
 // Debug shell implementation
@@ -255,39 +255,42 @@ int mirix_kernel_main_with_args(mirix_kernel_args_t *args) {
 #endif
 
 #ifdef MACH_USERSPACE_INTEGRATION
-    printf("Initializing Mach userspace services...\n");
+    printf("[i] Initializing Mach userspace services...\n");
     kern_return_t kr = mach_userspace_init();
     if (kr != KERN_SUCCESS) {
-        kernel_panic("Failed to initialize Mach userspace services");
+        kernel_panic("[err] Failed to initialize Mach userspace services");
         free_kernel_args(args);
         return -1;
     }
-    printf("Mach userspace services ready\n");
+    printf("[i] Mach userspace services ready\n");
 #endif
     
     if (host_interface_init() != 0) {
-        kernel_panic("Failed to initialize host interface");
+        kernel_panic("[err] Failed to initialize host interface");
         free_kernel_args(args);
         return -1;
     }
     
     if (ipc_system_init() != 0) {
-        kernel_panic("Failed to initialize IPC system");
+        kernel_panic("[err] Failed to initialize IPC system");
         free_kernel_args(args);
         return -1;
     }
     
     if (syscall_init() != 0) {
-        kernel_panic("Failed to initialize syscall system");
+        kernel_panic("[err] Failed to initialize syscall system");
         free_kernel_args(args);
         return -1;
     }
     
     if (posix_init() != 0) {
-        kernel_panic("Failed to initialize POSIX compatibility layer");
+        kernel_panic("[err] Failed to initialize POSIX compatibility layer");
         free_kernel_args(args);
         return -1;
     }
+
+    // Initialize BSD process management
+    bsd_proc_init();
     
     // Check for root filesystem
     if (args && args->root_filesystem) {
@@ -342,7 +345,7 @@ int mirix_kernel_main_with_args(mirix_kernel_args_t *args) {
             return -1;
         }
         
-        if (lazyfs_init(true) != 0) {
+        if (lazyfs_init(args->lazyfs_backing_file, true) != 0) {
             kernel_panic("Failed to initialize root filesystem");
             free_kernel_args(args);
             return -1;

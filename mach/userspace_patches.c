@@ -1,8 +1,8 @@
 /*
- * MIRIX Mach Userspace Patches
+ *  Mach Userspace Patches
  * 
  * This file contains patches to make Mach 4 code run in userspace
- * as part of the MIRIX lazykernel system.
+ * as part of the mirix lazykernel system.
  */
 
 #include <stdio.h>

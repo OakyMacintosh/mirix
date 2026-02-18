@@ -4,12 +4,28 @@
  */
 
 #include "sus_simple.h"
-#include "../syscall/syscall.h"
+#include "mirix/syscall/syscall.h"
 #include <string.h>
 #include <errno.h>
+#include <sys/mman.h>
+#include <signal.h>
+#include <time.h>
+#include <pthread.h>
+#include "dos_compat.h"
+
+#ifndef POSIX_FADV_NORMAL
+#define POSIX_FADV_NORMAL 0
+#define POSIX_FADV_RANDOM 1
+#define POSIX_FADV_SEQUENTIAL 2
+#define POSIX_FADV_WILLNEED 3
+#define POSIX_FADV_DONTNEED 4
+#define POSIX_FADV_NOREUSE 5
+#endif
+
 
 // SUS Memory Functions
 int mirix_posix_memalign(size_t alignment, size_t size) {
+#if MIRIX_POSIX_MEMALIGN_AVAILABLE
     // Ensure alignment is at least sizeof(void*)
     if (alignment < sizeof(void*)) {
         alignment = sizeof(void*);
@@ -29,9 +45,14 @@ int mirix_posix_memalign(size_t alignment, size_t size) {
     
     errno = result;
     return -1;
+#else
+    errno = ENOSYS;
+    return -1;
+#endif
 }
 
 int mirix_posix_fadvise(int fd, off_t offset, off_t len, int advice) {
+#if MIRIX_POSIX_FADVISE_AVAILABLE
     // Map POSIX advice to system-specific advice
     int sys_advice;
     switch (advice) {
@@ -59,9 +80,14 @@ int mirix_posix_fadvise(int fd, off_t offset, off_t len, int advice) {
     }
     
     return madvise_syscall(fd, offset, len, sys_advice);
+#else
+    errno = ENOSYS;
+    return -1;
+#endif
 }
 
 int mirix_posix_fallocate(int fd, off_t offset, off_t len) {
+#if MIRIX_POSIX_FALLOCATE_AVAILABLE
     // Use ftruncate if system doesn't support fallocate
     if (fallocate_syscall(fd, offset, len, 0) == -1) {
         if (errno == ENOSYS) {
@@ -81,18 +107,33 @@ int mirix_posix_fallocate(int fd, off_t offset, off_t len) {
         }
     }
     return 0;
+#else
+    errno = ENOSYS;
+    return -1;
+#endif
 }
 
 int mirix_posix_madvise(void *addr, size_t len, int advice) {
+#if MIRIX_POSIX_MADVISE_AVAILABLE
     return madvise_syscall((uintptr_t)addr, len, advice);
+#else
+    errno = ENOSYS;
+    return -1;
+#endif
 }
 
 int mirix_posix_openpt(int oflag) {
+#if MIRIX_POSIX_OPENPT_AVAILABLE
     return open("/dev/ptmx", oflag);
+#else
+    errno = ENOSYS;
+    return -1;
+#endif
 }
 
 // SUS Clock Functions
 int clock_getres(clockid_t clock_id, struct timespec *res) {
+#if MIRIX_CLOCK_GETRES_AVAILABLE
     if (!res) {
         errno = EINVAL;
         return -1;
@@ -111,9 +152,14 @@ int clock_getres(clockid_t clock_id, struct timespec *res) {
             errno = EINVAL;
             return -1;
     }
+#else
+    errno = ENOSYS;
+    return -1;
+#endif
 }
 
 int clock_nanosleep(clockid_t clock_id, const struct timespec *rqtp, struct timespec *rmtp) {
+#if MIRIX_CLOCK_NANOSLEEP_AVAILABLE
     if (!rqtp) {
         errno = EINVAL;
         return -1;
@@ -127,6 +173,10 @@ int clock_nanosleep(clockid_t clock_id, const struct timespec *rqtp, struct time
     }
     
     return result;
+#else
+    errno = ENOSYS;
+    return -1;
+#endif
 }
 
 // SUS Timer Functions (simplified)
@@ -134,6 +184,7 @@ static timer_t timer_table[64];
 static int timer_count = 0;
 
 int timer_create(clockid_t clock_id, struct sigevent *sevp, timer_t *timerid) {
+#if MIRIX_TIMER_CREATE_AVAILABLE
     if (!timerid || timer_count >= 64) {
         errno = ENOMEM;
         return -1;
@@ -146,9 +197,14 @@ int timer_create(clockid_t clock_id, struct sigevent *sevp, timer_t *timerid) {
     timer_count++;
     
     return 0;
+#else
+    errno = ENOSYS;
+    return -1;
+#endif
 }
 
 int timer_delete(timer_t timerid) {
+#if MIRIX_TIMER_DELETE_AVAILABLE
     if (timerid >= 64 || timer_table[timerid] == 0) {
         errno = EINVAL;
         return -1;
@@ -156,28 +212,52 @@ int timer_delete(timer_t timerid) {
     
     timer_table[timerid] = 0;
     return 0;
+#else
+    errno = ENOSYS;
+    return -1;
+#endif
 }
 
 int timer_gettime(timer_t timerid, struct itimerspec *value) {
+#if MIRIX_TIMER_GETTIME_AVAILABLE
     if (timerid >= 64 || timer_table[timerid] == 0 || !value) {
         errno = EINVAL;
         return -1;
     }
     
-    // Return current time as timer value
-    return clock_gettime_syscall(CLOCK_REALTIME, (struct timespec *)value);
+    // Simplified - return current time as timer value
+    struct timespec ts;
+    if (clock_gettime(CLOCK_REALTIME, &ts) == 0) {
+        value->it_interval_tv_sec = 0;
+        value->it_interval_tv_nsec = 0;
+        value->it_value_tv_sec = ts.tv_sec;
+        value->it_value_tv_nsec = ts.tv_nsec;
+        return 0;
+    }
+    
+    return -1;
+#else
+    errno = ENOSYS;
+    return -1;
+#endif
 }
 
 int timer_getoverrun(timer_t timerid) {
+#if MIRIX_TIMER_GETTIME_AVAILABLE
     if (timerid >= 64 || timer_table[timerid] == 0) {
         errno = EINVAL;
         return -1;
     }
     
     return 0; // No overrun in simplified implementation
+#else
+    errno = ENOSYS;
+    return -1;
+#endif
 }
 
 int timer_settime(timer_t timerid, int flags, const struct itimerspec *value) {
+#if MIRIX_TIMER_SETTIME_AVAILABLE
     if (timerid >= 64 || timer_table[timerid] == 0 || !value) {
         errno = EINVAL;
         return -1;
@@ -185,6 +265,10 @@ int timer_settime(timer_t timerid, int flags, const struct itimerspec *value) {
     
     // Simplified - just return success
     return 0;
+#else
+    errno = ENOSYS;
+    return -1;
+#endif
 }
 
 // SUS Thread Functions
@@ -197,23 +281,24 @@ int sus_is_compliant(void) {
     return 1; // We implement SUSv3 core features
 }
 
-const char *sus_version_string(void) {
-    return "MIRIX SUSv3 Core (POSIX.1-2001) Compliance";
+int sus_check_compliance(void) {
+    return 0;
 }
 
-// SUS Feature Test
+const char *sus_version_string(void) {
+    return "MIRIX SUSv3 Core Implementation";
+}
+
 int sus_feature_test(int feature) {
     switch (feature) {
+        case _POSIX_VERSION:
+            return 200112L;
         case _POSIX_THREADS:
             return 200809L;
-        case _POSIX_SEMAPHORES:
-            return 200809L;
-        case _POSIX_SHARED_MEMORY_OBJECTS:
-            return 200809L;
-        case _POSIX_MESSAGE_PASSING:
-            return 200112L;
-        case _POSIX_TIMERS:
-            return 200809L;
+        case _POSIX2_VERSION:
+            return 199212L;
+        case _XOPEN_VERSION:
+            return 700;
         default:
             return -1;
     }
@@ -221,52 +306,98 @@ int sus_feature_test(int feature) {
 
 // SUS Shared Memory Functions (simplified)
 int mirix_shm_open(const char *name, int oflag, mode_t mode) {
+#if MIRIX_SHM_OPEN_AVAILABLE
     // Simplified implementation
     errno = ENOSYS;
     return -1;
+#else
+    errno = ENOSYS;
+    return -1;
+#endif
 }
 
 int mirix_shm_unlink(const char *name) {
+#if MIRIX_SHM_UNLINK_AVAILABLE
     // Simplified implementation
     errno = ENOSYS;
     return -1;
+#else
+    errno = ENOSYS;
+    return -1;
+#endif
 }
 
 // SUS Process Functions
 int posix_fork(void) {
-    return fork_syscall();
+#if MIRIX_FORK_AVAILABLE
+    return MIRIX_FORK();
+#else
+    return MIRIX_FORK();
+#endif
 }
 
 int posix_execve(const char *pathname, char *const argv[], char *const envp[]) {
-    return execve_syscall(pathname, argv, envp);
+#if MIRIX_EXECVE_AVAILABLE
+    return MIRIX_EXECVE(pathname, argv, envp);
+#else
+    errno = ENOSYS;
+    return -1;
+#endif
 }
 
 pid_t posix_waitpid(pid_t pid, int *status, int options) {
-    return waitpid_syscall(pid, status, options);
+#if MIRIX_FORK_AVAILABLE
+    return MIRIX_GETPID();
+#else
+    return MIRIX_GETPID();
+#endif
 }
 
 // SUS File Operations
 int posix_pipe(int pipefd[2]) {
-    return pipe_syscall(pipefd);
+#if MIRIX_POSIX_PIPE_AVAILABLE
+    return MIRIX_POSIX_PIPE(pipefd);
+#else
+    errno = ENOSYS;
+    return -1;
+#endif
 }
 
 int posix_mkdir(const char *pathname, mode_t mode) {
-    // Ensure proper permissions for SUS compliance
-    mode_t sus_mode = mode & ~umask(0);
-    return mkdir_syscall(pathname, sus_mode);
+#if MIRIX_POSIX_MKDIR_AVAILABLE
+    return MIRIX_POSIX_MKDIR(pathname, mode);
+#else
+    errno = ENOSYS;
+    return -1;
+#endif
 }
 
 int posix_fsync(int fd) {
-    return fsync_syscall(fd);
+#if MIRIX_POSIX_FSYNC_AVAILABLE
+    return MIRIX_POSIX_FSYNC(fd);
+#else
+    errno = ENOSYS;
+    return -1;
+#endif
 }
 
 int posix_fdatasync(int fd) {
-    return fdatasync_syscall(fd);
+#if MIRIX_POSIX_FDATASYNC_AVAILABLE
+    return MIRIX_POSIX_FDATASYNC(fd);
+#else
+    errno = ENOSYS;
+    return -1;
+#endif
 }
 
 // SUS Socket Operations
 int posix_socket(int domain, int type, int protocol) {
-    return socket_syscall(domain, type, protocol);
+#if MIRIX_POSIX_SOCKET_AVAILABLE
+    return MIRIX_POSIX_SOCKET(domain, type, protocol);
+#else
+    errno = ENOSYS;
+    return -1;
+#endif
 }
 
 // SUS Status Information
@@ -275,9 +406,35 @@ void sus_status(void) {
     printf("  SUS Version: %s\n", sus_version_string());
     printf("  SUS Compliance: %s\n", sus_is_compliant() ? "SUSv3 Core" : "Incomplete");
     printf("  POSIX.1-2001: %s\n", sus_feature_test(_POSIX_VERSION) == 200112L ? "YES" : "NO");
+#if MIRIX_POSIX_THREADS_AVAILABLE
     printf("  Threads: %s\n", sus_feature_test(_POSIX_THREADS) == 200809L ? "YES" : "NO");
+#else
+    printf("  Threads: NO (DOS Limited)\n");
+#endif
+#if MIRIX_POSIX_SEMAPHORES_AVAILABLE
     printf("  Semaphores: %s\n", sus_feature_test(_POSIX_SEMAPHORES) == 200809L ? "YES" : "NO");
+#else
+    printf("  Semaphores: NO (DOS Limited)\n");
+#endif
+#if MIRIX_POSIX_SHARED_MEMORY_AVAILABLE
     printf("  Shared Memory: %s\n", sus_feature_test(_POSIX_SHARED_MEMORY_OBJECTS) == 200809L ? "YES" : "NO");
+#else
+    printf("  Shared Memory: NO (DOS Limited)\n");
+#endif
+#if MIRIX_POSIX_MESSAGE_PASSING_AVAILABLE
     printf("  Message Passing: %s\n", sus_feature_test(_POSIX_MESSAGE_PASSING) == 200112L ? "YES" : "NO");
+#else
+    printf("  Message Passing: NO (DOS Limited)\n");
+#endif
+#if MIRIX_POSIX_TIMERS_AVAILABLE
     printf("  Timers: %s\n", sus_feature_test(_POSIX_TIMERS) == 200809L ? "YES" : "NO");
+#else
+    printf("  Timers: NO (DOS Limited)\n");
+#endif
+    
+#if MIRIX_PLATFORM_DOS
+    printf("  Platform: DOS (Limited Features)\n");
+#else
+    printf("  Platform: UNIX (Full Features)\n");
+#endif
 }

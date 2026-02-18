@@ -6,17 +6,13 @@
  * Implements core POSIX.1-2001, SUSv3 features without conflicts
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <errno.h>
 #include <signal.h>
 #include <time.h>
 #include <pthread.h>
+#include "dos_compat.h"
 
 #ifdef __cplusplus
 extern "C" {

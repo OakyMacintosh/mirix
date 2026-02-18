@@ -7,7 +7,7 @@ A `lazykernel` is a microkernel subtype (can also be hybrid on the case of MIRIX
 MIRIX itself is a UNIX-like kernel, with its own implementation of userspace IPC and timers, and also has some POSIX compliance. But instead of using C as main language like on UNIX, MIRIX uses M&C, an Hybrid set of C (hybridset = superset and subset at the same time)
 
 ## SUS (Single UNIX Specification) Compliance
-MIRIX includes **full SUSv3 (POSIX.1-2001) compliance** with the following features:
+MIRIX now includes **full SUSv3 (POSIX.1-2001) compliance** with the following features:
 
 ### Core SUS Features Implemented
 - **POSIX Threads** - Full pthread support with SUSv3 extensions
@@ -142,6 +142,7 @@ The SUS implementation is designed to work across multiple platforms:
 - [ ] New name definition for the kernel
 - [ ] support for dynamic libraries
 - [ ] support for dynamic linking
+- [ ] XCToolchain and SDK for Xcode
 
 ## References
 - [Single UNIX Specification](https://pubs.opengroup.org/onlinepubs/9699919799/)

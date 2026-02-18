@@ -1,7 +1,6 @@
-# MIRIX Kernel Makefile
-# Copyright (C) 2025 MIRIX Project
+# Aqua Kernel Makefile
 
-# Include MIRIX build definitions FIRST
+# Include aqua build definitions FIRST
 MIRIX_ROOT = $(CURDIR)
 include $(MIRIX_ROOT)/Makedefs/Config.mk
 include $(MIRIX_ROOT)/Makedefs/Rules.mk
@@ -20,7 +19,7 @@ endif
 # Compiler and tools
 CC = clang
 LD = ld
-CFLAGS = -Wall -Wextra -std=c99 -g -O2 -D_GNU_SOURCE -Wno-implicit-function-declaration -I./
+CFLAGS = -Wall -Wextra -std=c99 -g -O2 -D_GNU_SOURCE -Wno-implicit-function-declaration -I./ -DMIRIX_PLATFORM_DOS
 LDFLAGS = -lpthread
 
 # Source directories
@@ -37,6 +36,9 @@ MNCDIR = mirix/mnc
 BSDIR = bsd
 ARCHDIR = arch
 BUILDDIR = build
+
+BUILDTYPE ?= release
+BUILDSUFFIX = $(BUILDTYPE)
 
 # Architecture detection
 ARCH ?= $(shell uname -m)
@@ -77,7 +79,8 @@ IPC_SOURCES = \
 	$(IPCDIR)/ipc.c
 
 SYSCALL_SOURCES = \
-	$(SYSCALLDIR)/syscall.c
+	$(SYSCALLDIR)/syscall.c \
+	$(SYSCALLDIR)/syscall_wrappers.c
 
 POSIX_SOURCES = \
 	$(POSIXDIR)/posix.c \
@@ -96,7 +99,8 @@ LIBC_SOURCES = \
 	$(SRCDIR)/libc/mirix_libc.c
 
 BSD_SOURCES = \
-	$(BSDIR)/bsd_syscalls.c
+	$(BSDIR)/bsd_syscalls.c \
+	$(BSDIR)/bsd_proc.c
 
 MNC_SOURCES = \
 	$(MNCDIR)/mnc_parser.c \
@@ -122,7 +126,7 @@ MNC_OBJECTS = $(MNC_SOURCES:$(MNCDIR)/%.c=$(BUILDDIR)/$(MNCDIR)/%.o)
 OBJECTS = $(KERNEL_OBJECTS) $(HOST_OBJECTS) $(IPC_OBJECTS) $(SYSCALL_OBJECTS) $(POSIX_OBJECTS) $(DRIVER_OBJECTS) $(LIBSYS_OBJECTS) $(LIBSYSCALL_OBJECTS) $(LIBC_OBJECTS) $(BSD_OBJECTS) $(ARCH_OBJECTS) $(MNC_OBJECTS)
 
 # Target executable
-TARGET = $(BUILDDIR)/mirix_kernel
+TARGET = $(BUILDDIR)/aqua_kernel$(BUILD_SUFFIX)
 
 # M&C test executable
 MNC_TEST = $(BUILDDIR)/test-mnc

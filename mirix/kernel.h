@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <pthread.h>
+#include <sys/types.h>
 #include "kernel_args.h"
 
 #ifdef MACH_KERNEL_INTEGRATION

@@ -11,6 +11,7 @@ typedef struct mirix_kernel_args {
     size_t alloc_size;         // Memory allocation size
     char *init_program;        // Init program to run
     char *root_filesystem;     // Root filesystem
+    char *lazyfs_backing_file; // Path to the lazyfs backing file
     bool verbose;             // Verbose output
     int cpu_count;            // Number of CPUs
     bool help;                // Show help
