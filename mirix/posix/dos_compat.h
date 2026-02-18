@@ -182,26 +182,66 @@
     #define O_ACCMODE 0x0003
 #else
     #include <fcntl.h>
-    #define O_CREAT O_CREAT
-    #define O_RDONLY O_RDONLY
-    #define O_WRONLY O_WRONLY
-    #define O_RDWR O_RDWR
-    #define O_APPEND O_APPEND
-    #define O_TRUNC O_TRUNC
-    #define O_EXCL O_EXCL
-    #define O_SYNC O_SYNC
-    #define O_ASYNC O_ASYNC
-    #define O_DSYNC O_DSYNC
-    #define O_RSYNC O_RSYNC
-    #define O_NONBLOCK O_NONBLOCK
-    #define O_NDELAY O_NDELAY
-    #define O_NOCTTY O_NOCTTY
-    #define O_DIRECTORY O_DIRECTORY
-    #define O_NOFOLLOW O_NOFOLLOW
-    #define O_CLOEXEC O_CLOEXEC
-    #define O_BINARY O_BINARY
-    #define O_TEXT O_TEXT
-    #define O_ACCMODE O_ACCMODE
+    #ifndef O_CREAT
+        #define O_CREAT O_CREAT
+    #endif
+    #ifndef O_RDONLY
+        #define O_RDONLY O_RDONLY
+    #endif
+    #ifndef O_WRONLY
+        #define O_WRONLY O_WRONLY
+    #endif
+    #ifndef O_RDWR
+        #define O_RDWR O_RDWR
+    #endif
+    #ifndef O_APPEND
+        #define O_APPEND O_APPEND
+    #endif
+    #ifndef O_TRUNC
+        #define O_TRUNC O_TRUNC
+    #endif
+    #ifndef O_EXCL
+        #define O_EXCL O_EXCL
+    #endif
+    #ifndef O_SYNC
+        #define O_SYNC O_SYNC
+    #endif
+    #ifndef O_ASYNC
+        #define O_ASYNC O_ASYNC
+    #endif
+    #ifndef O_DSYNC
+        #define O_DSYNC O_DSYNC
+    #endif
+    #ifndef O_RSYNC
+        #define O_RSYNC O_RSYNC
+    #endif
+    #ifndef O_NONBLOCK
+        #define O_NONBLOCK O_NONBLOCK
+    #endif
+    #ifndef O_NDELAY
+        #define O_NDELAY O_NDELAY
+    #endif
+    #ifndef O_NOCTTY
+        #define O_NOCTTY O_NOCTTY
+    #endif
+    #ifndef O_DIRECTORY
+        #define O_DIRECTORY O_DIRECTORY
+    #endif
+    #ifndef O_NOFOLLOW
+        #define O_NOFOLLOW O_NOFOLLOW
+    #endif
+    #ifndef O_CLOEXEC
+        #define O_CLOEXEC O_CLOEXEC
+    #endif
+    #ifndef O_BINARY
+        #define O_BINARY O_BINARY
+    #endif
+    #ifndef O_TEXT
+        #define O_TEXT O_TEXT
+    #endif
+    #ifndef O_ACCMODE
+        #define O_ACCMODE O_ACCMODE
+    #endif
 #endif
 
 /* SUS Function Availability for DOS */
