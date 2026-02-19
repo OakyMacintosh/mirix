@@ -7,3 +7,4 @@ mirix_kernel
 *_kernel
 *.timestamp
 *.timeshare
+.DS_Store
