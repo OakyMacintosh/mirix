@@ -120,6 +120,19 @@ The SUS implementation is designed to work across multiple platforms:
 # In debug shell: type "sus" to check compliance
 ```
 
+### Running a.out workloads and the lazykernel ABI
+
+The MIRIX kernel can now recognize traditional a.out headers through `mirix/loader/aout_loader.{c,h}` and expose the `-C <executable>` flag on the command line so you can launch a specific binary (it takes priority over the default init path). The helper script `tools/run-lazy-kernel -C <binary>` assembles the default root filesystem (`build/X86_64-DEBUG/filesystem/rootfs`), adds any extra kernel options after `--`, and invokes `./build/aqua_kernel -C <binary>`.
+
+`tools/mirix-gcc` also advertises the lazykernel ABI: it defines `__AQUA__`, `__LZYABI__`, and `LZYABI_TARGET=any-none-aqua-lzyabi` at compile time and echoes the new ABI name in its status output. Together these changes give `bash` (and similar SHELL implementations) the minimal visibility they need to compile for MIRIX and let you iterate quickly on a.out binaries.
+
+```bash
+tools/mirix-gcc -o build/bin/bash src/bash/main.c
+tools/run-lazy-kernel -C build/bin/bash --root build/X86_64-DEBUG/filesystem/rootfs
+```
+
+The kernel will log the a.out segment sizes when it detects the format before handing execution off to the new userland process, so you can watch how your `bash` build grows while the new `-C` helper gets you into the shell without touching the init path.
+
 ### Future Enhancements
 - **SUSv4** - Future Single UNIX Specification support
 - **Real-time extensions** - Enhanced real-time capabilities

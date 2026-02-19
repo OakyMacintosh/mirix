@@ -1,0 +1,53 @@
+*** Begin Patch
+*** Update File: extras/software/src/gnu/bash-2.0/configure
+@@
+ host_alias=$host
+ case "$host_alias" in
+ NONE)
+   case $nonopt in
+   NONE)
+     if host_alias=`$ac_config_guess`; then :
+     else { echo "configure: error: can not guess host type; you must specify one" 1>&2; exit 1; }
+     fi ;;
+   *) host_alias=$nonopt ;;
+   esac ;;
+ esac
++
++ac_lzyabi_target=""
++case "$host_alias" in
++  any-none-aqua-lzyabi*)
++    ac_lzyabi_target="$host_alias"
++    host_alias="x86_64-unknown-linux-gnu"
++    ;;
++esac
+ 
+ host=`$ac_config_sub $host_alias`
+ host_cpu=`echo $host | sed 's/^\([^-]*\)-\([^-]*\)-\(.*\)$/\1/'`
+ host_vendor=`echo $host | sed 's/^\([^-]*\)-\([^-]*\)-\(.*\)$/\2/'`
+ host_os=`echo $host | sed 's/^\([^-]*\)-\([^-]*\)-\(.*\)$/\3/'`
+ echo "$ac_t""$host" 1>&6
++
++if test "x$ac_lzyabi_target" != x""; then
++cat >> confdefs.h <<\EOF
++#define LZYABI_TARGET "$ac_lzyabi_target"
++#define HAVE_LAZY_KERNEL 1
++EOF
++fi
+*** End Patch
+
+*** Begin Patch
+*** Update File: extras/software/src/gnu/bash-2.0/config.h.in
+@@
+-/* Configuration settings controllable by autoconf. */
+-
+-/* Define JOB_CONTROL if your operating system supports
++/* Configuration settings controllable by autoconf. */
++
++/* Define LZYABI_TARGET when configuring for the lazykernel ABI. */
++#undef LZYABI_TARGET
++
++/* Define HAVE_LAZY_KERNEL when building for the lazykernel ABI. */
++#undef HAVE_LAZY_KERNEL
++
++/* Define JOB_CONTROL if your operating system supports
+*** End Patch

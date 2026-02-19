@@ -10,6 +10,7 @@ typedef struct mirix_kernel_args {
     char *timeshare_file;      // Timeshare configuration file
     size_t alloc_size;         // Memory allocation size
     char *init_program;        // Init program to run
+    char *command_program;     // Binary launched via -C
     char *root_filesystem;     // Root filesystem
     char *lazyfs_backing_file; // Path to the lazyfs backing file
     bool verbose;             // Verbose output

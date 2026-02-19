@@ -8,9 +8,11 @@ set -e
 # Get the host architecture
 HOST_ARCH=$(uname -m)
 TARGET_TRIPLE="${HOST_ARCH}-unknown-sysv-mirix1"
+LAZYABI_TRIPLE="any-none-aqua-lzyabi"
 
 # Default compiler flags
-CFLAGS="-std=c99 -Wall -Wextra -O2 -fno-builtin -ffreestanding -nostdlib"
+ABI_DEFINES="-D__AQUA__=1 -D__LZYABI__=1 -DLZYABI_TARGET=${LAZYABI_TRIPLE}"
+CFLAGS="-std=c99 -Wall -Wextra -O2 -fno-builtin -ffreestanding -nostdlib ${ABI_DEFINES}"
 LDFLAGS="-static"
 LIBS="-lmirixc"
 
@@ -108,4 +110,5 @@ if [ "$COMPILE_ONLY" = false ]; then
     
     echo "MIRIX executable created: $OUTPUT_FILE"
     echo "Target: $TARGET_TRIPLE"
+    echo "ABI: $LAZYABI_TRIPLE"
 fi

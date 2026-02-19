@@ -94,6 +94,7 @@ int mirix_kernel_main(int argc, char **argv);
 int mirix_kernel_main_with_args(mirix_kernel_args_t *args);
 int mirix_syscall_handler(int syscall_num, void *args);
 mirix_kernel_state_t* mirix_get_kernel_state(void);
+mirix_kernel_args_t* mirix_get_kernel_args(void);
 void mirix_kernel_shutdown(void);
 void kernel_panic(const char *message);
 

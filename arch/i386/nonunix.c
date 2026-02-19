@@ -12,6 +12,16 @@
 // Platform detection
 static mirix_platform_t platform_type = MIRIX_PLATFORM_UNKNOWN;
 
+// Forward declarations for platform-specific helpers
+static int nonunix_init_windows(void);
+static int nonunix_init_macos(void);
+static int nonunix_init_linux(void);
+static int nonunix_init_generic(void);
+static void nonunix_cleanup_windows(void);
+static void nonunix_cleanup_macos(void);
+static void nonunix_cleanup_linux(void);
+static void nonunix_cleanup_generic(void);
+
 // Initialize non-UNIX platform support
 int nonunix_init(void) {
     printf("Initializing MIRIX for non-UNIX platform...\n");

@@ -20,6 +20,9 @@ static struct {
 
 // Initialize host interface
 int host_interface_init(void) {
+#ifdef MIRIX_PLATFORM_DOS
+    return 0;
+#endif
     if (host_state.initialized) {
         return 0;
     }
@@ -45,6 +48,9 @@ void host_interface_cleanup(void) {
 
 // Poll for host events
 int host_interface_poll_events(void) {
+#ifdef MIRIX_PLATFORM_DOS
+    return 0;
+#endif
     if (!host_state.initialized) {
         return -1;
     }
@@ -80,6 +86,12 @@ int host_interface_poll_events(void) {
 
 // Add file descriptor to monitor
 int host_interface_monitor_fd(int fd, void (*callback)(int fd, void *data), void *data) {
+#ifdef MIRIX_PLATFORM_DOS
+    (void)fd;
+    (void)callback;
+    (void)data;
+    return -1;
+#endif
     if (!host_state.initialized) {
         return -1;
     }
@@ -97,6 +109,10 @@ int host_interface_monitor_fd(int fd, void (*callback)(int fd, void *data), void
 
 // Remove file descriptor from monitoring
 int host_interface_unmonitor_fd(int fd) {
+#ifdef MIRIX_PLATFORM_DOS
+    (void)fd;
+    return -1;
+#endif
     if (!host_state.initialized) {
         return -1;
     }
@@ -115,6 +131,13 @@ int host_interface_unmonitor_fd(int fd) {
 // Create timer
 int host_interface_create_timer(uint64_t interval_ms, bool periodic, 
                               void (*callback)(void *data), void *data) {
+#ifdef MIRIX_PLATFORM_DOS
+    (void)interval_ms;
+    (void)periodic;
+    (void)callback;
+    (void)data;
+    return -1;
+#endif
     if (!host_state.initialized) {
         return -1;
     }

@@ -12,6 +12,7 @@ static mirix_kernel_args_t default_args = {
     .timeshare_file = NULL,
     .alloc_size = 512 * 1024 * 1024, // 512MB
     .init_program = "./sysvinit.out",
+    .command_program = NULL,
     .root_filesystem = "build/X86_64-DEBUG/filesystem/rootfs",
     .lazyfs_backing_file = "./lazyfs.img", // New default
     .verbose = false,
@@ -27,6 +28,7 @@ static void print_usage(const char *program_name) {
     printf("  -t, --timeshare FILE     Timeshare configuration file\n");
     printf("  -a, --alloc SIZE        Memory allocation size (default: 512MB)\n");
     printf("  -i, --init PROGRAM      Init program (default: ./sysvinit.out)\n");
+    printf("  -C, --command PROGRAM   Run a prebuilt binary before init (takes precedence over -i)\n");
     printf("  -r, --root FS          Root filesystem mount point (default: %s)\n", default_args.root_filesystem);
     printf("  -f, --lazyfs-file FILE LazyFS backing file (default: %s)\n", default_args.lazyfs_backing_file);
     printf("  -v, --verbose           Enable verbose output\n");
@@ -98,6 +100,7 @@ mirix_kernel_args_t* parse_kernel_args(int argc, char *argv[]) {
         {"init",       required_argument, 0, 'i'},
         {"root",       required_argument, 0, 'r'},
         {"lazyfs-file", required_argument, 0, 'f'}, // New long option
+        {"command",    required_argument, 0, 'C'},
         {"verbose",    no_argument,       0, 'v'},
         {"mcpu",      required_argument, 0, 'm'},
         {"help",       no_argument,       0, 'h'},
@@ -108,7 +111,7 @@ mirix_kernel_args_t* parse_kernel_args(int argc, char *argv[]) {
     int opt;
     int option_index = 0;
     
-    while ((opt = getopt_long(argc, argv, "t:a:i:r:f:vm:h", long_options, &option_index)) != -1) {
+    while ((opt = getopt_long(argc, argv, "t:a:i:C:r:f:vm:h", long_options, &option_index)) != -1) {
         switch (opt) {
             case 't':
                 args->timeshare_file = strdup(optarg);
@@ -121,7 +124,11 @@ mirix_kernel_args_t* parse_kernel_args(int argc, char *argv[]) {
             case 'i':
                 args->init_program = strdup(optarg);
                 break;
-                
+
+            case 'C':
+                args->command_program = strdup(optarg);
+                break;
+               
             case 'r':
                 args->root_filesystem = strdup(optarg);
                 break;
@@ -184,6 +191,9 @@ void print_kernel_args(const mirix_kernel_args_t *args) {
     if (args->init_program) {
         printf("Init program:      %s\n", args->init_program);
     }
+    if (args->command_program) {
+        printf("Command override:   %s\n", args->command_program);
+    }
     
     if (args->root_filesystem) {
         printf("Root filesystem:   %s\n", args->root_filesystem);
@@ -208,6 +218,9 @@ void free_kernel_args(mirix_kernel_args_t *args) {
     }
     if (args->init_program && args->init_program != default_args.init_program) {
         free(args->init_program);
+    }
+    if (args->command_program) {
+        free(args->command_program);
     }
     if (args->root_filesystem && args->root_filesystem != default_args.root_filesystem) {
         free(args->root_filesystem);

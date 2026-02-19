@@ -20,7 +20,9 @@ endif
 CC = clang
 LD = ld
 CFLAGS = -Wall -Wextra -std=c99 -g -O2 -D_GNU_SOURCE -Wno-implicit-function-declaration -I./ -DMIRIX_PLATFORM_DOS
-LDFLAGS = -lpthread
+LDFLAGS =
+HOST_DOS_INCLUDES = -Ihost/dos/include
+HOST_DOS_PTHREAD_INCLUDES = -Ihost/dos/aed/pthread
 
 # Source directories
 SRCDIR = mirix
@@ -35,6 +37,7 @@ LIBCDIR = mirix/libc
 MNCDIR = mirix/mnc
 BSDIR = bsd
 ARCHDIR = arch
+LOADERDIR = mirix/loader
 BUILDDIR = build
 
 BUILDTYPE ?= release
@@ -75,6 +78,20 @@ KERNEL_SOURCES = \
 HOST_SOURCES = \
 	$(HOSTDIR)/host_interface.c
 
+DOS_PTHREAD_DIR = host/dos/aed/pthread
+DOS_PTHREAD_SOURCES = \
+	$(DOS_PTHREAD_DIR)/dosthread.c
+
+DOS_COMPAT_SOURCES = \
+	host/dos/dos_compat.c
+
+ENABLE_DOS_SUPPORT ?= 0
+
+ifeq ($(ENABLE_DOS_SUPPORT),0)
+DOS_PTHREAD_SOURCES =
+DOS_COMPAT_SOURCES =
+endif
+
 IPC_SOURCES = \
 	$(IPCDIR)/ipc.c
 
@@ -86,8 +103,17 @@ POSIX_SOURCES = \
 	$(POSIXDIR)/posix.c \
 	$(POSIXDIR)/sus_simple.c
 
+# DRIVER SOURCES
 DRIVER_SOURCES = \
 	$(DRIVERDIR)/lazyfs.c
+
+MODULE_DIR = modules
+MODULE_SOURCES = \
+	$(MODULE_DIR)/registry.c \
+	$(MODULE_DIR)/dos_personality.c
+
+LIBDIST_DIR = libdist
+LIBDIST_SOURCES = $(LIBDIST_DIR)/libdist.c
 
 LIBSYS_SOURCES = \
 	$(LIBSYSDIR)/libsystem.c
@@ -102,12 +128,15 @@ BSD_SOURCES = \
 	$(BSDIR)/bsd_syscalls.c \
 	$(BSDIR)/bsd_proc.c
 
+LOADER_SOURCES = \
+	$(LOADERDIR)/aout_loader.c
+
 MNC_SOURCES = \
 	$(MNCDIR)/mnc_parser.c \
 	$(MNCDIR)/mnc_compiler.c
 
 # All sources
-ALL_SOURCES = $(KERNEL_SOURCES) $(HOST_SOURCES) $(IPC_SOURCES) $(SYSCALL_SOURCES) $(POSIX_SOURCES) $(DRIVER_SOURCES) $(LIBSYS_SOURCES) $(LIBSYSCALL_SOURCES) $(LIBC_SOURCES) $(BSD_SOURCES) $(ARCH_SOURCES) $(MNC_SOURCES)
+ALL_SOURCES = $(KERNEL_SOURCES) $(HOST_SOURCES) $(IPC_SOURCES) $(SYSCALL_SOURCES) $(POSIX_SOURCES) $(DRIVER_SOURCES) $(LIBSYS_SOURCES) $(LIBSYSCALL_SOURCES) $(LIBC_SOURCES) $(BSD_SOURCES) $(ARCH_SOURCES) $(MNC_SOURCES) $(DOS_PTHREAD_SOURCES) $(DOS_COMPAT_SOURCES) $(MODULE_SOURCES) $(LOADER_SOURCES)
 
 # Object files
 KERNEL_OBJECTS = $(KERNEL_SOURCES:$(SRCDIR)/%.c=$(BUILDDIR)/$(SRCDIR)/%.o)
@@ -122,8 +151,14 @@ LIBC_OBJECTS = $(LIBC_SOURCES:$(SRCDIR)/%.c=$(BUILDDIR)/$(SRCDIR)/%.o)
 BSD_OBJECTS = $(BSD_SOURCES:$(BSDIR)/%.c=$(BUILDDIR)/$(BSDIR)/%.o)
 ARCH_OBJECTS = $(ARCH_SOURCES:$(ARCHDIR)/%.c=$(BUILDDIR)/$(ARCHDIR)/%.o)
 MNC_OBJECTS = $(MNC_SOURCES:$(MNCDIR)/%.c=$(BUILDDIR)/$(MNCDIR)/%.o)
+DOS_PTHREAD_OBJECTS = $(DOS_PTHREAD_SOURCES:%.c=$(BUILDDIR)/%.o)
+DOS_COMPAT_OBJECTS = $(DOS_COMPAT_SOURCES:%.c=$(BUILDDIR)/%.o)
 
-OBJECTS = $(KERNEL_OBJECTS) $(HOST_OBJECTS) $(IPC_OBJECTS) $(SYSCALL_OBJECTS) $(POSIX_OBJECTS) $(DRIVER_OBJECTS) $(LIBSYS_OBJECTS) $(LIBSYSCALL_OBJECTS) $(LIBC_OBJECTS) $(BSD_OBJECTS) $(ARCH_OBJECTS) $(MNC_OBJECTS)
+MODULE_OBJECTS = $(MODULE_SOURCES:$(MODULE_DIR)/%.c=$(BUILDDIR)/$(MODULE_DIR)/%.o)
+LIBDIST_OBJECTS = $(LIBDIST_SOURCES:$(LIBDIST_DIR)/%.c=$(BUILDDIR)/$(LIBDIST_DIR)/%.o)
+LOADER_OBJECTS = $(LOADER_SOURCES:$(LOADERDIR)/%.c=$(BUILDDIR)/$(LOADERDIR)/%.o)
+
+OBJECTS = $(KERNEL_OBJECTS) $(HOST_OBJECTS) $(IPC_OBJECTS) $(SYSCALL_OBJECTS) $(POSIX_OBJECTS) $(DRIVER_OBJECTS) $(LIBSYS_OBJECTS) $(LIBSYSCALL_OBJECTS) $(LIBC_OBJECTS) $(BSD_OBJECTS) $(ARCH_OBJECTS) $(MNC_OBJECTS) $(DOS_PTHREAD_OBJECTS) $(DOS_COMPAT_OBJECTS) $(MODULE_OBJECTS) $(LOADER_OBJECTS)
 
 # Target executable
 TARGET = $(BUILDDIR)/aqua_kernel$(BUILD_SUFFIX)
@@ -181,6 +216,11 @@ $(BUILDDIR):
 	mkdir -p $(BUILDDIR)/$(ARCHDIR)/x86_64
 	mkdir -p $(BUILDDIR)/$(ARCHDIR)/i386
 	mkdir -p $(BUILDDIR)/$(ARCHDIR)/generic
+	mkdir -p $(BUILDDIR)/$(LOADERDIR)
+	mkdir -p $(BUILDDIR)/host/dos/aed/pthread
+	mkdir -p $(BUILDDIR)/host/dos
+	mkdir -p $(BUILDDIR)/modules
+	mkdir -p $(BUILDDIR)/libdist
 
 # Build the main executable
 $(TARGET): $(OBJECTS) | $(BUILDDIR)
@@ -192,8 +232,28 @@ $(MNC_TEST): $(BUILDDIR)/$(MNCDIR)/test_mnc.o $(BUILDDIR)/$(MNCDIR)/mnc_parser.o
 	$(CC) $(BUILDDIR)/$(MNCDIR)/test_mnc.o $(BUILDDIR)/$(MNCDIR)/mnc_parser.o $(BUILDDIR)/$(MNCDIR)/mnc_compiler.o -o $@
 	@echo "Built M&C test: $@"
 
+libdist: $(LIBDIST_OBJECTS)
+	@echo "Built libdist helper: $(LIBDIST_OBJECTS)"
+
+$(BUILDDIR)/host/dos/dos_compat.o: host/dos/dos_compat.c | $(BUILDDIR)
+	@mkdir -p $(dir $@)
+	$(CC) $(HOST_DOS_INCLUDES) $(CFLAGS) -c $< -o $@
+
+$(BUILDDIR)/host/dos/aed/pthread/dosthread.o: host/dos/aed/pthread/dosthread.c | $(BUILDDIR)
+	@mkdir -p $(dir $@)
+	$(CC) $(HOST_DOS_INCLUDES) $(HOST_DOS_PTHREAD_INCLUDES) $(CFLAGS) -c $< -o $@
+
 # Compile source files
 $(BUILDDIR)/%.o: %.c | $(BUILDDIR)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Compile module sources
+$(BUILDDIR)/$(MODULE_DIR)/%.o: $(MODULE_DIR)/%.c | $(BUILDDIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Compile libdist helper
+$(BUILDDIR)/$(LIBDIST_DIR)/%.o: $(LIBDIST_DIR)/%.c | $(BUILDDIR)/$(LIBDIST_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Dependencies
@@ -215,6 +275,11 @@ $(BUILDDIR)/$(ARCHDIR)/i386/nonunix.o: $(ARCHDIR)/i386/nonunix.h
 $(BUILDDIR)/$(MNCDIR)/mnc_parser.o: $(MNCDIR)/mnc_parser.h
 $(BUILDDIR)/$(MNCDIR)/mnc_compiler.o: $(MNCDIR)/mnc_compiler.h $(MNCDIR)/mnc_parser.h
 $(BUILDDIR)/$(MNCDIR)/test_mnc.o: $(MNCDIR)/mnc_parser.h $(MNCDIR)/mnc_compiler.h
+$(BUILDDIR)/host/dos/aed/pthread/dosthread.o: host/dos/aed/pthread/dosthread.c host/dos/aed/pthread/dosthread.h
+$(BUILDDIR)/host/dos/dos_compat.o: host/dos/dos_compat.c
+$(BUILDDIR)/modules/registry.o: modules/registry.c modules/module_registry.h modules/dos_personality.h
+$(BUILDDIR)/modules/dos_personality.o: modules/dos_personality.c modules/dos_personality.h
+$(BUILDDIR)/mirix/loader/aout_loader.o: mirix/loader/aout_loader.c mirix/loader/aout_loader.h
 
 # Clean build artifacts
 clean:

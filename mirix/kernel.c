@@ -1,7 +1,9 @@
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/wait.h>
 #include <sys/mman.h>
 #include <pthread.h>
 #include <sys/stat.h>
@@ -13,7 +15,10 @@
 #include "syscall/syscall.h"
 #include "posix/posix.h"
 #include "drivers/lazyfs.h"
+#include "modules/module.h"
+#include "modules/module.h"
 #include "bsd/bsd_proc.h"
+#include "loader/aout_loader.h"
 
 #ifdef MACH_KERNEL_INTEGRATION
 #include "mach/mach.h"
@@ -181,37 +186,66 @@ static void mirix_debug_shell(void) {
     }
 }
 
-// Execute init program
-static void execute_init_program(void) {
-    if (!kernel_args || !kernel_args->init_program) {
-        kernel_panic("No init program available");
-        return;
+static int kernel_launch_binary(const char *path, char *const argv[]) {
+    if (!path) {
+        errno = EINVAL;
+        return -1;
     }
-    
-    printf("Executing: %s\n", kernel_args->init_program);
-    
-    // Fork and execute init program
+
+    mirix_aout_info_t info;
+    if (mirix_aout_probe(path, &info)) {
+        printf("[a.out] %s text=%u data=%u bss=%u entry=0x%08x\n",
+               path, info.text_size, info.data_size, info.bss_size,
+               info.entry_point);
+        return mirix_aout_launch(path, argv);
+    }
+
+    return execv(path, argv);
+}
+
+static void kernel_run_program_and_wait(const char *label, const char *path) {
     pid_t pid = fork();
     if (pid == 0) {
-        // Child process - execute init
-        char *args[] = {kernel_args->init_program, NULL};
-        execv(kernel_args->init_program, args);
-        
-        // If we get here, exec failed
-        kernel_panic("Failed to execute init program");
-        exit(1);
+        char *child_args[] = {(char *)path, NULL};
+        kernel_launch_binary(path, child_args);
+        perror("kernel exec");
+        kernel_panic("Failed to execute binary");
+        _exit(127);
     } else if (pid > 0) {
-        // Parent process - wait for init
         int status;
         waitpid(pid, &status, 0);
-        printf("Init program exited with status: %d\n", status);
-        
-        // If init exits, shutdown the kernel
+        printf("%s program exited with status: %d\n", label, status);
         printf("Init program terminated, shutting down kernel...\n");
         kernel_state.status = MIRIX_KERNEL_SHUTTING_DOWN;
     } else {
         kernel_panic("Failed to fork for init program");
     }
+}
+
+// Execute init program
+static void execute_init_program(void) {
+    const char *program = NULL;
+    const char *label = "init";
+
+    if (!kernel_args) {
+        kernel_panic("No kernel arguments available");
+        return;
+    }
+
+    if (kernel_args->command_program) {
+        program = kernel_args->command_program;
+        label = "command";
+    } else {
+        program = kernel_args->init_program;
+    }
+
+    if (!program) {
+        kernel_panic("No init program available");
+        return;
+    }
+
+    printf("Executing %s program: %s\n", label, program);
+    kernel_run_program_and_wait(label, program);
 }
 
 // Main kernel entry point (legacy)
@@ -285,6 +319,12 @@ int mirix_kernel_main_with_args(mirix_kernel_args_t *args) {
     
     if (posix_init() != 0) {
         kernel_panic("[err] Failed to initialize POSIX compatibility layer");
+        free_kernel_args(args);
+        return -1;
+    }
+
+    if (initialize_kernel_modules() != 0) {
+        kernel_panic("[err] Failed to initialize kernel modules");
         free_kernel_args(args);
         return -1;
     }
@@ -382,33 +422,30 @@ static void kernel_main_loop(void) {
     
     // Check if we have a root filesystem and init program
     if (kernel_args && kernel_args->root_filesystem) {
-        printf("Root filesystem available, checking for init program...\n");
+        printf("Root filesystem available, checking for user program...\n");
+        const char *entry_program = kernel_args->command_program ? kernel_args->command_program : kernel_args->init_program;
+        const char *entry_label = kernel_args->command_program ? "command" : "init program";
         
-        if (kernel_args->init_program) {
-            // Check if init program exists
+        if (entry_program) {
             struct stat st;
-            if (stat(kernel_args->init_program, &st) == 0) {
-                printf("Starting init program: %s\n", kernel_args->init_program);
+            if (stat(entry_program, &st) == 0) {
+                printf("Starting %s: %s\n", entry_label, entry_program);
                 execute_init_program();
-                // If init exits, shutdown the kernel
                 return;
             } else {
-                printf("Init program not found: %s\n", kernel_args->init_program);
+                printf("%s not found: %s\n", entry_label, entry_program);
                 printf("Falling back to debug shell...\n");
                 mirix_debug_shell();
-                // After debug shell, shutdown the kernel
                 return;
             }
         } else {
             printf("No init program specified, entering debug shell...\n");
             mirix_debug_shell();
-            // After debug shell, shutdown the kernel
             return;
         }
     } else {
         printf("No root filesystem, entering debug shell...\n");
         mirix_debug_shell();
-        // After debug shell, shutdown the kernel
         return;
     }
     
@@ -449,6 +486,10 @@ mirix_kernel_state_t* mirix_get_kernel_state(void) {
     return &kernel_state;
 }
 
+mirix_kernel_args_t* mirix_get_kernel_args(void) {
+    return kernel_args;
+}
+
 // Kernel shutdown
 void mirix_kernel_shutdown(void) {
     kernel_state.status = MIRIX_KERNEL_SHUTTING_DOWN;
@@ -469,6 +510,7 @@ void mirix_kernel_shutdown(void) {
     syscall_cleanup();
     ipc_system_cleanup();
     host_interface_cleanup();
+    shutdown_kernel_modules();
     
     kernel_state.status = MIRIX_KERNEL_STOPPED;
 }

@@ -81,7 +81,10 @@ int clock_getres(clockid_t clock_id, struct timespec *res);
 int clock_nanosleep(clockid_t clock_id, const struct timespec *rqtp, struct timespec *rmtp);
 
 // SUS Timer Functions (simplified)
+#ifndef MIRIX_HAS_TIMER_T
 typedef int timer_t;
+#define MIRIX_HAS_TIMER_T
+#endif
 struct itimerspec {
     int it_interval_tv_sec;
     int it_interval_tv_nsec;

@@ -1,0 +1,17 @@
+
+#define LZYABI_TARGET "$ac_lzyabi_target"
+#define HAVE_LAZY_KERNEL 1
+#define ALIAS 1
+#define READLINE 1
+#define HISTORY 1
+#define BANG_HISTORY 1
+#define PUSHD_AND_POPD 1
+#define RESTRICTED_SHELL 1
+#define PROCESS_SUBSTITUTION 1
+#define PROMPT_STRING_DECODE 1
+#define SELECT_COMMAND 1
+#define HELP_BUILTIN 1
+#define ARRAY_VARS 1
+#define DPAREN_ARITHMETIC 1
+#define BRACE_EXPANSION 1
+#define COMMAND_TIMING 1

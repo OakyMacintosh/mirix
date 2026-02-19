@@ -1,0 +1,62 @@
+#!/bin/bash
+
+set -euo pipefail
+
+KERNEL_BIN="./build/aqua_kernel"
+DEFAULT_ROOT="./build/X86_64-DEBUG/filesystem/rootfs"
+COMMAND=""
+ROOT_FS=""
+EXTRA_ARGS=()
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -C)
+            COMMAND="$2"
+            shift 2
+            ;;
+        --root)
+            ROOT_FS="$2"
+            shift 2
+            ;;
+        --)
+            shift
+            while [[ $# -gt 0 ]]; do
+                EXTRA_ARGS+=("$1")
+                shift
+            done
+            break
+            ;;
+        *)
+            EXTRA_ARGS+=("$1")
+            shift
+            ;;
+    esac
+ done
+
+ROOT_FS="${ROOT_FS:-$DEFAULT_ROOT}"
+
+if [[ -z "$COMMAND" ]]; then
+    cat <<USAGE
+Usage: $(basename "$0") -C <executable> [--root <rootfs>] [kernel args...]
+  -C <executable>   Run a binary that has been built for MIRIX (a.out).
+  --root <rootfs>   Override the root filesystem (default: $DEFAULT_ROOT)
+  --                Forward the rest of the arguments to $(basename "$KERNEL_BIN").
+USAGE
+    exit 1
+fi
+
+if [[ ! -x "$KERNEL_BIN" ]]; then
+    echo "Kernel binary not found: $KERNEL_BIN"
+    exit 1
+fi
+
+if [[ ! -e "$COMMAND" ]]; then
+    echo "Command not found: $COMMAND"
+    exit 1
+fi
+
+if [[ ${#EXTRA_ARGS[@]} -gt 0 ]]; then
+    exec "$KERNEL_BIN" -C "$COMMAND" --root "$ROOT_FS" "${EXTRA_ARGS[@]}"
+else
+    exec "$KERNEL_BIN" -C "$COMMAND" --root "$ROOT_FS"
+fi
