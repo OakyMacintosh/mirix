@@ -9,6 +9,7 @@ echo "Building MIRIX Cross-Compiler Toolchain..."
 # Get host architecture
 HOST_ARCH=$(uname -m)
 TARGET_TRIPLE="${HOST_ARCH}-unknown-sysv-mirix1"
+SYSROOT="build/mirix-cross/sysroot/${TARGET_TRIPLE}"
 
 # Create directories
 mkdir -p build/mirix-cross/libc
@@ -36,12 +37,29 @@ echo "MIRIX libc built: build/mirix-cross/lib/libmirixc.a"
 
 # Create MIRIX sysroot
 echo "Creating MIRIX sysroot..."
-mkdir -p "build/mirix-cross/sysroot/${TARGET_TRIPLE}/lib"
-mkdir -p "build/mirix-cross/sysroot/${TARGET_TRIPLE}/include"
+mkdir -p "$SYSROOT/lib"
+mkdir -p "$SYSROOT/include"
 
 # Copy libc to sysroot
-cp build/mirix-cross/lib/libmirixc.a "build/mirix-cross/sysroot/${TARGET_TRIPLE}/lib/"
-cp mirix_libc_freestanding.h "build/mirix-cross/sysroot/${TARGET_TRIPLE}/include/mirix_libc.h"
+cp build/mirix-cross/lib/libmirixc.a "$SYSROOT/lib/"
+cp build/mirix-cross/lib/libmirixc.a "$SYSROOT/lib/libc.a"
+cp mirix_libc_freestanding.h "$SYSROOT/include/mirix_libc.h"
+
+# Create MIRIX entry stub (used as crt1.o)
+cat > build/mirix-cross/entry.c <<'EOF'
+void _start(void) {
+    extern int main(void);
+    extern void exit(int);
+    int result = main();
+    exit(result);
+}
+EOF
+
+clang -std=c99 -Wall -Wextra -ffreestanding -nostdlib -fno-builtin \
+    -target "$TARGET_TRIPLE" \
+    build/mirix-cross/entry.c -o build/mirix-cross/entry.o
+
+cp build/mirix-cross/entry.o "$SYSROOT/lib/crt1.o"
 
 # Create compiler wrapper scripts
 cat > build/mirix-cross/bin/mirix-gcc << 'EOF'

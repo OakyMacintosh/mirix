@@ -3,23 +3,13 @@ running configure, to aid debugging if configure makes a mistake.
 
 configure:665: checking host system type
 configure:1012: checking for gcc
-configure:1089: checking whether the C compiler (/Volumes/FileSystemMac/Developer/Projects/MIRIX/extras/software/mirix/multicc/multicc -D__AQUA__=1 -D__LZYABI__=1 -Imirix/libc /Volumes/FileSystemMac/Developer/Projects/MIRIX/tools/build/mirix-cross/libc) works
-configure:1103: /Volumes/FileSystemMac/Developer/Projects/MIRIX/extras/software/mirix/multicc/multicc -o conftest -D__AQUA__=1 -D__LZYABI__=1 -Imirix/libc -I/usr/local/opt/zlib/include /Volumes/FileSystemMac/Developer/Projects/MIRIX/tools/build/mirix-cross/libc conftest.c  1>&5
-clang: warning: /Volumes/FileSystemMac/Developer/Projects/MIRIX/tools/build/mirix-cross/libc: 'linker' input unused [-Wunused-command-line-argument]
-clang: warning: argument unused during compilation: '-D __AQUA__=1' [-Wunused-command-line-argument]
-clang: warning: argument unused during compilation: '-D __LZYABI__=1' [-Wunused-command-line-argument]
-clang: warning: argument unused during compilation: '-I mirix/libc' [-Wunused-command-line-argument]
-clang: warning: argument unused during compilation: '-D __AQUA__=1' [-Wunused-command-line-argument]
-clang: warning: argument unused during compilation: '-D __LZYABI__=1' [-Wunused-command-line-argument]
-clang: warning: argument unused during compilation: '-I mirix/libc' [-Wunused-command-line-argument]
-clang: warning: argument unused during compilation: '-I /usr/local/opt/zlib/include' [-Wunused-command-line-argument]
+configure:1089: checking whether the C compiler (clang  -L/usr/local/opt/zlib/lib) works
+configure:1103: clang -o conftest  -I/usr/local/opt/zlib/include -L/usr/local/opt/zlib/lib conftest.c  1>&5
 configure:1100:1: error: type specifier missing, defaults to 'int'; ISO C99 and later do not support implicit int [-Wimplicit-int]
  1100 | main(){return(0);}
       | ^
       | int
 1 error generated.
-[multicc] compiling "/Volumes/FileSystemMac/Developer/Projects/MIRIX/tools/build/mirix-cross/libc" -> "/Volumes/FileSystemMac/Developer/Projects/MIRIX/extras/software/src/gnu/bash-2.0/build/multicc/libc.o"
-[multicc] compiling "conftest.c" -> "/Volumes/FileSystemMac/Developer/Projects/MIRIX/extras/software/src/gnu/bash-2.0/build/multicc/conftest.o"
 configure: failed program was:
 #line 1099 "configure"
 #include "confdefs.h"

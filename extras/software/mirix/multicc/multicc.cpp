@@ -202,6 +202,11 @@ static std::filesystem::path default_targets_file(const std::filesystem::path &e
     return candidate;
 }
 
+
+void printHelpString() {
+	// todo
+}
+
 int main(int argc, char **argv) {
     bool compile_only = false;
     std::string output = "a.out";
@@ -250,6 +255,14 @@ int main(int argc, char **argv) {
             extra_args.push_back(arg);
             continue;
         }
+		if (arg == "--help") {
+				printHelpString();
+				continue;
+		}
+		if (arg == "-h") {
+			printHelpString();
+			continue;
+		}
         inputs.push_back(arg);
     }
 

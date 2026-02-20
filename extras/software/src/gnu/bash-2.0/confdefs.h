@@ -1,6 +1,4 @@
 
-#define LZYABI_TARGET "$ac_lzyabi_target"
-#define HAVE_LAZY_KERNEL 1
 #define ALIAS 1
 #define READLINE 1
 #define HISTORY 1
