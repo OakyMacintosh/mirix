@@ -36,8 +36,6 @@
 #include <sys/wait.h>
 #include <vector>
 
-
-
 static std::string trim(const std::string &s) {
     auto start = s.find_first_not_of(" \t\r\n");
     if (start == std::string::npos) {
